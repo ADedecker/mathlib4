@@ -286,13 +286,29 @@ section
 
 variable (α)
 
+open Prod in
 @[to_additive]
 theorem uniformity_eq_comap_nhds_one : 𝓤 α = comap (fun x : α × α => x.2 / x.1) (𝓝 (1 : α)) := by
-  refine eq_of_forall_le_iff fun 𝓕 ↦ ?_
-  rw [nhds_eq_comap_uniformity, comap_comap, ← tendsto_iff_comap,
-    ← (tendsto_diag_uniformity Prod.fst 𝓕).uniformity_mul_iff_left, ← tendsto_id']
-  congrm Tendsto ?_ _ _
-  ext <;> simp
+  have foo : ∀ β : Type u_1, ∀ f : β → α, comap (fun b ↦ (f b, f b)) (𝓤 α) = ⊤ := by
+    intro β f
+    rw [eq_top_iff, ← tendsto_iff_comap]
+    exact tendsto_diag_uniformity _ _
+  let i : α × α → (α × α) × (α × α) := fun ⟨x, y⟩ ↦ ⟨⟨x, x⟩, ⟨x, y⟩⟩
+  have key_i : comap i (𝓤 (α × α)) = 𝓤 α := by
+    simp [uniformity_prod, comap_inf, comap_comap, i, Function.comp_def, foo, comap_id']
+  let φ : α × α → α × α := fun xy ↦ ⟨xy.1, xy.2 / xy.1⟩
+  let ψ : α × α → α × α := fun xy ↦ ⟨xy.1, xy.2 * xy.1⟩
+  have hφ : UniformContinuous φ :=
+    uniformContinuous_fst.prodMk <| uniformContinuous_snd.div uniformContinuous_fst
+  have hψ : UniformContinuous ψ :=
+    uniformContinuous_fst.prodMk <| uniformContinuous_snd.mul uniformContinuous_fst
+  have ψφ : ψ ∘ φ = id := by
+    ext <;> simp [φ, ψ]
+  have key_φ : comap (Prod.map φ φ) (𝓤 (α × α)) = 𝓤 (α × α) := by
+    refine Filter.comap_eq_of_inverse (Prod.map ψ ψ) ?_ hφ hψ
+    simp [Prod.map_comp_map, ψφ]
+  rw [← key_i, ← key_φ, nhds_eq_comap_uniformity, ← key_i]
+  simp [comap_comap, i, φ, Function.comp_def, uniformity_prod, foo]
 
 @[to_additive]
 theorem uniformity_eq_comap_nhds_one_swapped :
