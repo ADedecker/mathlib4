@@ -526,23 +526,44 @@ polynomially bounded. -/
 def _root_.Function.HasTemperateGrowth (f : E → F) : Prop :=
   ContDiff ℝ ∞ f ∧ ∀ n : ℕ, ∃ (k : ℕ) (C : ℝ), ∀ x, ‖iteratedFDeriv ℝ n f x‖ ≤ C * (1 + ‖x‖) ^ k
 
-theorem _root_.Function.HasTemperateGrowth.norm_iteratedFDeriv_le_uniform_aux {f : E → F}
+open Asymptotics
+
+theorem _root_.Function.hasTemperateGrowth_iff_isBigO {f : E → F} :
+    f.HasTemperateGrowth ↔ ContDiff ℝ ∞ f ∧
+      ∀ n, ∃ k, iteratedFDeriv ℝ n f =O[⊤] (fun x ↦ (1 + ‖x‖) ^ k):= by
+  simp_rw [Asymptotics.isBigO_top]
+  congrm ContDiff ℝ ∞ f ∧ (∀ n, ∃ k C, ∀ x, _ ≤ C * ?_)
+  rw [norm_pow, Real.norm_of_nonneg (by positivity)]
+
+theorem _root_.Function.HasTemperateGrowth.isBigO {f : E → F}
+    (hf_temperate : f.HasTemperateGrowth) (n : ℕ) :
+    ∃ k, iteratedFDeriv ℝ n f =O[⊤] (fun x ↦ (1 + ‖x‖) ^ k) :=
+  Function.hasTemperateGrowth_iff_isBigO.mp hf_temperate |>.2 n
+
+theorem _root_.Function.HasTemperateGrowth.isBigO_uniform {f : E → F}
+    (hf_temperate : f.HasTemperateGrowth) (N : ℕ) :
+    ∃ k, ∀ n ≤ N, iteratedFDeriv ℝ n f =O[⊤] (fun x ↦ (1 + ‖x‖) ^ k) := by
+  choose k hk using hf_temperate.isBigO
+  use (Finset.range (N + 1)).sup k
+  intro n hn
+  refine (hk n).trans (isBigO_of_le _ fun x ↦ ?_)
+  rw [Real.norm_of_nonneg (by positivity), Real.norm_of_nonneg (by positivity)]
+  gcongr
+  · simp
+  · exact Finset.le_sup (by simpa [← Finset.mem_range_succ_iff] using hn)
+
+theorem _root_.Function.HasTemperateGrowth.norm_iteratedFDeriv_le_uniform {f : E → F}
     (hf_temperate : f.HasTemperateGrowth) (n : ℕ) :
     ∃ (k : ℕ) (C : ℝ), 0 ≤ C ∧ ∀ N ≤ n, ∀ x : E, ‖iteratedFDeriv ℝ N f x‖ ≤ C * (1 + ‖x‖) ^ k := by
-  choose k C f using hf_temperate.2
-  use (Finset.range (n + 1)).sup k
-  let C' := max (0 : ℝ) ((Finset.range (n + 1)).sup' (by simp) C)
-  have hC' : 0 ≤ C' := le_max_left _ _
-  use C', hC'
-  intro N hN x
-  rw [← Finset.mem_range_succ_iff] at hN
-  grw [f]
-  gcongr
-  · simp only [C', Finset.le_sup'_iff, le_max_iff]
-    right
-    exact ⟨N, hN, le_rfl⟩
-  · simp
-  exact Finset.le_sup hN
+  rcases hf_temperate.isBigO_uniform n with ⟨k, hk⟩
+  set F := fun x (N : Fin (n+1)) ↦ iteratedFDeriv ℝ N f x
+  have : F =O[⊤] (fun x ↦ (1 + ‖x‖) ^ k) := by
+    simp_rw [F, isBigO_pi, Fin.forall_iff, Nat.lt_succ]
+    exact hk
+  rcases this.exists_nonneg with ⟨C, C_nonneg, hC⟩
+  simp (discharger := positivity) only [isBigOWith_top, Real.norm_of_nonneg,
+    pi_norm_le_iff_of_nonneg, Fin.forall_iff, Nat.lt_succ] at hC
+  exact ⟨k, C, C_nonneg, fun N hN x ↦ hC x N hN⟩
 
 lemma _root_.Function.HasTemperateGrowth.of_fderiv {f : E → F}
     (h'f : Function.HasTemperateGrowth (fderiv ℝ f)) (hf : Differentiable ℝ f) {k : ℕ} {C : ℝ}
@@ -571,6 +592,39 @@ lemma _root_.ContinuousLinearMap.hasTemperateGrowth (f : E →L[ℝ] F) :
   · have : fderiv ℝ f = fun _ ↦ f := by ext1 v; simp only [ContinuousLinearMap.fderiv]
     simpa [this] using .const _
   · exact (f.le_opNorm x).trans (by simp [mul_add])
+
+section Multiplication
+
+variable [NontriviallyNormedField 𝕜] [NormedAlgebra ℝ 𝕜]
+  [NormedAddCommGroup D] [NormedSpace ℝ D]
+  [NormedAddCommGroup G] [NormedSpace ℝ G]
+  [NormedSpace 𝕜 F] [NormedSpace 𝕜 G]
+
+/-- The product of two functions of temperate growth is again of temperate growth.
+Version for bilinear maps. -/
+theorem _root_.ContinuousLinearMap.bilinear_hasTemperateGrowth [NormedSpace 𝕜 E]
+    (B : E →L[𝕜] F →L[𝕜] G) {f : D → E} {g : D → F} (hf : f.HasTemperateGrowth)
+    (hg : g.HasTemperateGrowth) : (fun x ↦ B (f x) (g x)).HasTemperateGrowth := by
+  rw [Function.hasTemperateGrowth_iff_isBigO]
+  constructor
+  · apply (B.bilinearRestrictScalars ℝ).isBoundedBilinearMap.contDiff.comp (hf.1.prodMk hg.1)
+  intro n
+  rcases hf.isBigO_uniform n with ⟨k1, h1⟩
+  rcases hg.isBigO_uniform n with ⟨k2, h2⟩
+  use k1 + k2
+  have estimate (x : D) : ‖iteratedFDeriv ℝ n (fun x ↦ B (f x) (g x)) x‖ ≤
+      ‖B‖ * ∑ i ∈ Finset.range (n+1), (n.choose i) *
+        ‖iteratedFDeriv ℝ i f x‖ * ‖iteratedFDeriv ℝ (n-i) g x‖ := by
+    refine (B.bilinearRestrictScalars ℝ).norm_iteratedFDeriv_le_of_bilinear hf.1 hg.1 x ?_
+    exact WithTop.coe_le_coe.mpr le_top
+  refine (IsBigO.of_norm_le estimate).trans (.const_mul_left (.sum fun i hi ↦ ?_) _)
+  simp_rw [mul_assoc, pow_add]
+  refine .const_mul_left (.mul (h1 i ?_).norm_left (h2 (n-i) ?_).norm_left) _ <;>
+  grind
+
+#exit
+
+end Multiplication
 
 theorem hasTemperateGrowth (f : 𝓢(E, F)) : Function.HasTemperateGrowth f := by
   refine ⟨smooth f ⊤, fun n => ?_⟩
