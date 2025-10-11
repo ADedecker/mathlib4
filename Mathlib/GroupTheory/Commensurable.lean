@@ -52,14 +52,14 @@ def Subgroup.quotConjEquiv (H K : Subgroup G) (g : ConjAct G) :
 @[to_additive /-- Two subgroups `H K` of `G` are commensurable if `H ⊓ K` has finite index in both
 `H` and `K`. -/]
 def Subgroup.Commensurable (H K : Subgroup G) : Prop :=
-  H.relIndex K ≠ 0 ∧ K.relIndex H ≠ 0
+  H.IsFiniteRelIndex K ∧ K.IsFiniteRelIndex H
 
 @[deprecated (since := "2025-09-17")] alias Commensurable := Subgroup.Commensurable
 
 namespace Subgroup.Commensurable
 
 @[to_additive (attr := refl)]
-protected theorem refl (H : Subgroup G) : Commensurable H H := by simp [Commensurable]
+protected theorem refl (H : Subgroup G) : Commensurable H H := ⟨inferInstance, inferInstance⟩
 
 @[to_additive]
 theorem comm {H K : Subgroup G} : Commensurable H K ↔ Commensurable K H := and_comm

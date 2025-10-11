@@ -669,6 +669,17 @@ variable (H K) in
 @[to_additive] lemma relIndex_ne_zero [H.IsFiniteRelIndex K] : H.relIndex K ≠ 0 :=
   IsFiniteRelIndex.relIndex_ne_zero
 
+@[to_additive] instance IsFiniteRelIndex.rfl : IsFiniteRelIndex H H where
+  relIndex_ne_zero := by simp
+
+@[to_additive] instance IsFiniteRelIndex.inf_right [IsFiniteRelIndex H K] :
+    IsFiniteRelIndex (H ⊓ K) K where
+  relIndex_ne_zero := by simpa [inf_relIndex_right] using relIndex_ne_zero
+
+@[to_additive] instance IsFiniteRelIndex.inf_left [IsFiniteRelIndex H K] :
+    IsFiniteRelIndex (K ⊓ H) K where
+  relIndex_ne_zero := by simpa [inf_relIndex_left] using relIndex_ne_zero
+
 @[deprecated (since := "2025-08-12")] alias relindex_ne_zero := relIndex_ne_zero
 
 @[to_additive]
