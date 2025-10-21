@@ -126,8 +126,7 @@ theorem v2 {W : Set X} {U : Set G} (U_mem : U ∈ 𝓝 1) (hU : InjOn (fun gx �
     calc
       𝓖 ⊓ 𝓟 A
         ≤ comap φ 𝓕 ⊓ 𝓟 A := le_inf this.le_comap inf_le_right
-      _ = comap φ 𝓕 ⊓ comap φ (𝓟 A) := by rw [comap_principal, φ_A]
-      _ = comap φ (𝓕 ⊓ 𝓟 A) := by rw [comap_inf]
+      _ = comap φ (𝓕 ⊓ 𝓟 A) := by rw [comap_inf, comap_principal, φ_A]
       _ ≤ comap φ (𝓟 Δ) := comap_mono hyp
       _ = 𝓟 Δ := by rw [comap_principal, φ_Δ]
   rw [tendsto_prod_iff', tendsto_prod_iff', tendsto_prod_iff']
@@ -140,6 +139,7 @@ theorem v2 {W : Set X} {U : Set G} (U_mem : U ∈ 𝓝 1) (hU : InjOn (fun gx �
   filter_upwards [mem_inf_of_right <| mem_principal_self A] with a
   simpa [A, f, φ, smul_eq_iff_eq_inv_smul, mul_smul] using id
 
+-- Ce qui sert pour construire des revêtements
 open Pointwise in
 theorem corollary [DiscreteTopology G] {x : X} (free_x : Injective ((· • x) : G → X)) :
     ∃ U ∈ 𝓝 x, ∀ s t : G, (s • U ∩ t • U).Nonempty → s = t := by
