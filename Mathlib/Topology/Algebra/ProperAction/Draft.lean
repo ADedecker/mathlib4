@@ -35,6 +35,7 @@ theorem ProperSMul.ultrafilter_tendsto_of_smul {ι : Type*} {g : ι → G} {x : 
   rw [Prod.mk_inj] at heq
   use g', heq.2 ▸ heq.1, hg'.fst_nhds
 
+-- Une variation (d'un sens) de `TG III §4.3 Prop 6`
 theorem ProperSMul.tendsto_of_smul_of_free {ι : Type*} {g : ι → G} {x : ι → X}
     {𝓕 : Filter ι} {a b : X} (H₁ : Tendsto x 𝓕 (𝓝 a)) (H₂ : Tendsto (g • x) 𝓕 (𝓝 b))
     (free_a : Injective ((· • a) : G → X)) {k : G} (k_a_eq_b : k • a = b) :
