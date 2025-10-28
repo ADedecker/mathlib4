@@ -35,6 +35,30 @@ theorem ProperSMul.ultrafilter_tendsto_of_smul {ι : Type*} {g : ι → G} {x : 
   rw [Prod.mk_inj] at heq
   use g', heq.2 ▸ heq.1, hg'.fst_nhds
 
+theorem ProperSMul.tendsto_nhdsSet_of_smul {ι : Type*} {g : ι → G} {x : ι → X}
+    {𝓕 : Filter ι} {a b : X} (H₁ : Tendsto x 𝓕 (𝓝 a)) (H₂ : Tendsto (g • x) 𝓕 (𝓝 b)) :
+    Tendsto g 𝓕 (𝓝ˢ {k | k • a = b}) := by
+  let φ : G × X → X × X := fun ⟨g, x⟩ ↦ ⟨g • x, x⟩
+  have hφ : IsProperMap φ := ProperSMul.isProperMap_smul_pair
+  have : Tendsto (fun i ↦ (g i, x i)) 𝓕 (𝓝ˢ (φ ⁻¹' {(b, a)})) := by
+    rw [← hφ.isClosedMap.comap_nhdsSet_eq hφ.continuous, tendsto_comap_iff, nhdsSet_singleton,
+        Prod.tendsto_iff]
+    exact ⟨H₂, H₁⟩
+  refine continuous_fst.tendsto_nhdsSet (fun ⟨g, x⟩ hgx ↦ ?_) |>.comp this
+  simp only [mem_preimage, mem_singleton_iff, Prod.mk.injEq, φ] at hgx
+  exact hgx.2 ▸ hgx.1
+
+-- Une variation (d'un sens) de `TG III §4.3 Prop 6`
+theorem ProperSMul.tendsto_of_smul_of_free' {ι : Type*} {g : ι → G} {x : ι → X}
+    {𝓕 : Filter ι} {a b : X} (H₁ : Tendsto x 𝓕 (𝓝 a)) (H₂ : Tendsto (g • x) 𝓕 (𝓝 b))
+    (free_a : Injective ((· • a) : G → X)) {k : G} (k_a_eq_b : k • a = b) :
+    Tendsto g 𝓕 (𝓝 k) := by
+  have key : {k} = {k' : G | k' • a = b} :=
+    subset_antisymm (singleton_subset_iff.mpr k_a_eq_b)
+      (fun k' k'_a_eq_b ↦ free_a (by simpa [k_a_eq_b] using k'_a_eq_b))
+  rw [← nhdsSet_singleton, key]
+  exact ProperSMul.tendsto_nhdsSet_of_smul H₁ H₂
+
 -- Une variation (d'un sens) de `TG III §4.3 Prop 6`
 theorem ProperSMul.tendsto_of_smul_of_free {ι : Type*} {g : ι → G} {x : ι → X}
     {𝓕 : Filter ι} {a b : X} (H₁ : Tendsto x 𝓕 (𝓝 a)) (H₂ : Tendsto (g • x) 𝓕 (𝓝 b))
