@@ -117,6 +117,15 @@ lemma IsProperMap.ultrafilter_le_nhds_of_tendsto (h : IsProperMap f) ⦃𝒰 : U
     (hy : Tendsto f 𝒰 (𝓝 y)) : ∃ x, f x = y ∧ 𝒰 ≤ 𝓝 x :=
   (isProperMap_iff_ultrafilter.mp h).2 hy
 
+/-- If `f` is proper and `f ∘ φ` tends to `y` along some ultrafilter `𝒰`, then `φ` tends along `𝒰`
+to some `x` such that `f x = y`. -/
+theorem IsProperMap.ultrafilter_tendsto_of_tendsto (hf : IsProperMap f)
+    {𝓤 : Ultrafilter ι} {φ : ι → X} {y : Y} (hy : Tendsto (f ∘ φ) (𝓤) (𝓝 y)) :
+    ∃ x, f x = y ∧ Tendsto φ 𝓤 (𝓝 x) := by
+  rw [← tendsto_map'_iff, ← Ultrafilter.coe_map] at hy
+  simp_rw [Tendsto]
+  exact hf.ultrafilter_le_nhds_of_tendsto hy
+
 /-- The composition of two proper maps is proper. -/
 lemma IsProperMap.comp (hg : IsProperMap g) (hf : IsProperMap f) :
     IsProperMap (g ∘ f) := by
