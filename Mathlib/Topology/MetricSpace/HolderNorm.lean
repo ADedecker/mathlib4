@@ -154,8 +154,9 @@ lemma HolderOnWith.mono_const {C₁ C₂ : ℝ≥0} {A : Set X} (hf : HolderOnWi
   grw [← hC]
   exact hf x hx y hy
 
-/-- If a function is `(C₁, r)`-Hölder and `(C₂, s)`-Hölder,
-then it is `(C₁ ^ t * C_₂ ^ (1 - t), r * t + s * (1 - t))`-Hölder for `0 ≤ t ≤ 1`. -/
+/-- If a function is `(C₁, r)`-Hölder and `(C₂, s)`-Hölder, then it is
+`(C₁ ^ t₁ * C_₂ ^ t₂, r * t₁ + s * t₂)`-Hölder for all `t₁ t₂ : ℝ≥0` such that
+`t₁ + t₂ = 1`. -/
 lemma HolderOnWith.interpolate {C₁ C₂ s t₁ t₂ : ℝ≥0} {A : Set X}
     (hf₁ : HolderOnWith C₁ r f A) (hf₂ : HolderOnWith C₂ s f A) (ht : t₁ + t₂ = 1) :
     HolderOnWith (C₁ ^ (t₁ : ℝ) * C₂ ^ (t₂ : ℝ)) (r * t₁ + s * t₂) f A := by
@@ -171,8 +172,9 @@ lemma HolderOnWith.interpolate {C₁ C₂ s t₁ t₂ : ℝ≥0} {A : Set X}
           ENNReal.rpow_add_of_nonneg, ENNReal.rpow_mul, ENNReal.coe_rpow_of_nonneg]
         ring
 
-/-- If a function is `(C₁, r)`-Hölder and `(C₂, s)`-Hölder,
-then it is `(max C₁ C₂, r * t + s * (1 - t))`-Hölder for `0 ≤ t ≤ 1`. -/
+/-- If a function is `(C, r)`-Hölder and `(C, s)`-Hölder,
+then it is `(C, r * t₁ + s * t₂)`-Hölder for all `t₁ t₂ : ℝ≥0` such that
+`t₁ + t₂ = 1`. -/
 lemma HolderOnWith.interpolate_const {C s t₁ t₂ : ℝ≥0} {A : Set X}
     (hf₁ : HolderOnWith C r f A) (hf₂ : HolderOnWith C s f A) (ht : t₁ + t₂ = 1) :
     HolderOnWith C (r * t₁ + s * t₂) f A := by
@@ -187,6 +189,8 @@ lemma HolderOnWith.interpolate_max {C₁ C₂ s t₁ t₂ : ℝ≥0} {A : Set X}
   .interpolate_const (hf₁.mono_const (le_max_left _ _)) (hf₂.mono_const (le_max_right _ _)) ht
 
 variable (f) in
+/-- For fixed `f : X → Y`, `A : Set X` and `C : ℝ≥0`, the set of all parameters `r : ℝ≥0` such that
+`f` is `(C, r)`-Hölder on `A` is convex. -/
 lemma convex_setOf_holderOnWith (C : ℝ≥0) (A : Set X) :
     Convex ℝ≥0 {r | HolderOnWith C r f A} := by
   intro r hr s hs _ _ _ _ ht
