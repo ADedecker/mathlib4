@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Kexing Ying
 -/
 import Mathlib.Topology.MetricSpace.Holder
+import Mathlib.Analysis.Convex.Basic
 
 /-!
 # Hölder norm
@@ -129,27 +130,76 @@ section Monotonicity
 
 open Bornology
 
+protected lemma NNReal.Icc_subset_segment {x y : ℝ≥0} :
+    Icc x y ⊆ segment ℝ≥0 x y := by
+  intro a ⟨hxa, hay⟩
+  rw [← NNReal.coe_le_coe] at hxa hay
+  rcases Icc_subset_segment ⟨hxa, hay⟩ with ⟨t₁, t₂, t₁_nonneg, t₂_nonneg, t_add, hta⟩
+  refine ⟨⟨t₁, t₁_nonneg⟩, ⟨t₂, t₂_nonneg⟩, zero_le _, zero_le _, ?_, ?_⟩ <;>
+  ext <;> simpa
+
+lemma NNReal.segment_eq_Icc {x y : ℝ≥0} (hxy : x ≤ y) :
+    segment ℝ≥0 x y = Icc x y := by
+  refine subset_antisymm (segment_subset_Icc hxy) NNReal.Icc_subset_segment
+
+lemma NNReal.segment_eq_uIcc {x y : ℝ≥0} :
+    segment ℝ≥0 x y = uIcc x y := by
+  rcases le_total x y with h | h
+  · simp [h, NNReal.segment_eq_Icc]
+  · simp [h, segment_symm ℝ≥0 x y, NNReal.segment_eq_Icc]
+
+lemma HolderOnWith.mono_const {C₁ C₂ : ℝ≥0} {A : Set X} (hf : HolderOnWith C₁ r f A)
+    (hC : C₁ ≤ C₂) : HolderOnWith C₂ r f A := by
+  intro x hx y hy
+  grw [← hC]
+  exact hf x hx y hy
+
 /-- If a function is `(C₁, r)`-Hölder and `(C₂, s)`-Hölder,
 then it is `(C₁ ^ t * C_₂ ^ (1 - t), r * t + s * (1 - t))`-Hölder for `0 ≤ t ≤ 1`. -/
-lemma HolderOnWith.interpolate {C₁ C₂ s t : ℝ≥0} {A : Set X}
-    (hf₁ : HolderOnWith C₁ r f A) (hf₂ : HolderOnWith C₂ s f A) (ht : t ≤ 1) :
-    HolderOnWith (C₁ ^ (t : ℝ) * C₂ ^ (1 - t : ℝ)) (r * t + s * (1 - t)) f A := by
+lemma HolderOnWith.interpolate {C₁ C₂ s t₁ t₂ : ℝ≥0} {A : Set X}
+    (hf₁ : HolderOnWith C₁ r f A) (hf₂ : HolderOnWith C₂ s f A) (ht : t₁ + t₂ = 1) :
+    HolderOnWith (C₁ ^ (t₁ : ℝ) * C₂ ^ (t₂ : ℝ)) (r * t₁ + s * t₂) f A := by
   intro x hx y hy
   calc edist (f x) (f y)
-      = (edist (f x) (f y)) ^ (t : ℝ) * (edist (f x) (f y)) ^ (1 - t : ℝ) := by
-        rw [← ENNReal.rpow_add_of_nonneg _ _ (by simp) (by simpa)]
-        simp
-    _ ≤ (C₁ * (edist x y) ^ (r : ℝ)) ^ (t : ℝ) * (C₂ * (edist x y) ^ (s : ℝ)) ^ (1 - t : ℝ) := by
+      = (edist (f x) (f y)) ^ (t₁ : ℝ) * (edist (f x) (f y)) ^ (t₂ : ℝ) := by
+        simp [← ENNReal.rpow_add_of_nonneg, ← NNReal.coe_add, ht]
+    _ ≤ (C₁ * (edist x y) ^ (r : ℝ)) ^ (t₁ : ℝ) * (C₂ * (edist x y) ^ (s : ℝ)) ^ (t₂ : ℝ) := by
         nth_grw 1 [hf₁ x hx y hy, hf₂ x hx y hy]
-        simpa
-    _ = ↑(C₁ ^ (t : ℝ) * C₂ ^ (1 - t : ℝ)) * (edist x y) ^ (↑(r * t + s * (1 - t)) : ℝ) := by
-        rw [ENNReal.mul_rpow_of_nonneg, ENNReal.mul_rpow_of_nonneg, NNReal.coe_add, NNReal.coe_mul,
-          NNReal.coe_mul, ENNReal.rpow_add_of_nonneg, ENNReal.rpow_mul, ENNReal.rpow_mul,
-          NNReal.coe_sub ht, NNReal.coe_one, ENNReal.coe_mul, ENNReal.coe_rpow_of_nonneg,
-          ENNReal.coe_rpow_of_nonneg]
-        · ring
-        any_goals positivity
-        all_goals simpa
+    _ = ↑(C₁ ^ (t₁ : ℝ) * C₂ ^ (t₂ : ℝ)) * (edist x y) ^ (↑(r * t₁ + s * t₂) : ℝ) := by
+        push_cast
+        simp (discharger := positivity) only [ENNReal.mul_rpow_of_nonneg,
+          ENNReal.rpow_add_of_nonneg, ENNReal.rpow_mul, ENNReal.coe_rpow_of_nonneg]
+        ring
+
+/-- If a function is `(C₁, r)`-Hölder and `(C₂, s)`-Hölder,
+then it is `(max C₁ C₂, r * t + s * (1 - t))`-Hölder for `0 ≤ t ≤ 1`. -/
+lemma HolderOnWith.interpolate_const {C s t₁ t₂ : ℝ≥0} {A : Set X}
+    (hf₁ : HolderOnWith C r f A) (hf₂ : HolderOnWith C s f A) (ht : t₁ + t₂ = 1) :
+    HolderOnWith C (r * t₁ + s * t₂) f A := by
+  convert hf₁.interpolate hf₂ ht
+  simp [← NNReal.rpow_add_of_nonneg, ← NNReal.coe_add, ht]
+
+/-- If a function is `(C₁, r)`-Hölder and `(C₂, s)`-Hölder,
+then it is `(max C₁ C₂, r * t + s * (1 - t))`-Hölder for `0 ≤ t ≤ 1`. -/
+lemma HolderOnWith.interpolate_max {C₁ C₂ s t₁ t₂ : ℝ≥0} {A : Set X}
+    (hf₁ : HolderOnWith C₁ r f A) (hf₂ : HolderOnWith C₂ s f A) (ht : t₁ + t₂ = 1) :
+    HolderOnWith (max C₁ C₂) (r * t₁ + s * t₂) f A :=
+  .interpolate_const (hf₁.mono_const (le_max_left _ _)) (hf₂.mono_const (le_max_right _ _)) ht
+
+variable (f) in
+lemma convex_setOf_holderOnWith (C : ℝ≥0) (A : Set X) :
+    Convex ℝ≥0 {r | HolderOnWith C r f A} := by
+  intro r hr s hs _ _ _ _ ht
+  rw [smul_eq_mul, smul_eq_mul, ← mul_comm r, ← mul_comm s]
+  exact hr.interpolate_const hs ht
+
+lemma HolderOnWith.of_le_of_le {C₁ C₂ s t : ℝ≥0} {A : Set X}
+    (hf₁ : HolderOnWith C₁ r f A) (hf₂ : HolderOnWith C₂ s f A) (hrt : r ≤ t)
+    (hts : t ≤ s) : HolderOnWith (max C₁ C₂) t f A := by
+  replace hf₁ := hf₁.mono_const (le_max_left C₁ C₂)
+  replace hf₂ := hf₂.mono_const (le_max_right C₁ C₂)
+  exact convex_setOf_holderOnWith f (max C₁ C₂) A |>.segment_subset hf₁ hf₂
+    (NNReal.Icc_subset_segment ⟨hrt, hts⟩)
 
 /-- If a function is Hölder over a bounded set, then it is bounded. -/
 lemma HolderOnWith.holderOnWith_zero_of_bounded {C D : ℝ≥0} {s : Set X}
@@ -166,17 +216,55 @@ lemma HolderOnWith.of_le {C D t : ℝ≥0} {s : Set X}
   obtain rfl | ht := eq_zero_or_pos t
   · simpa using hf.holderOnWith_zero_of_bounded hs
   have hr : 0 < r := ht.trans_le htr
-  convert hf.interpolate (hf.holderOnWith_zero_of_bounded hs) (t := t / r) ?_ using 1
-  · nth_rw 1 [NNReal.mul_rpow, ← NNReal.rpow_mul, ← mul_assoc, ← NNReal.rpow_add_of_nonneg,
-      ← NNReal.rpow_one C]
-    · congr
-      · simp
-      · rw [mul_sub, NNReal.coe_div, mul_div_cancel₀, mul_one]
-        exact NNReal.coe_ne_zero.2 hr.ne'
-    · exact NNReal.coe_nonneg _
-    · simpa only [sub_nonneg, coe_le_one, div_le_one hr]
-  · simp [mul_div_cancel₀ _ hr.ne']
-  · simpa only [sub_nonneg, coe_le_one, div_le_one hr]
+  rw [← NNReal.coe_le_coe] at htr
+  rw [← NNReal.coe_pos] at hr
+  set θ₁ : ℝ≥0 := ⟨t/r, by positivity⟩
+  set θ₂ : ℝ≥0 := ⟨1 - t/r, by simpa using div_le_one_of_le₀ htr (by positivity)⟩
+  have hθ : θ₁ + θ₂ = 1 := by ext; simp [θ₁, θ₂]
+  have hθt : r * θ₁ + 0 * θ₂ = t := by ext; simp [θ₁, mul_div_cancel₀ _ hr.ne']
+  have hθC : C * D ^ (r - t : ℝ) = C ^ (θ₁ : ℝ) * (C * D ^ (r : ℝ)) ^ (θ₂ : ℝ) := by
+    simp (discharger := positivity) only [NNReal.mul_rpow, ← mul_assoc,
+      ← NNReal.rpow_add_of_nonneg, ← NNReal.rpow_mul, ← NNReal.coe_add, hθ, NNReal.coe_one,
+      NNReal.rpow_one]
+    congr
+    simp [mul_sub, θ₂, mul_div_cancel₀ _ hr.ne']
+  rw [hθC, ← hθt]
+  exact hf.interpolate (hf.holderOnWith_zero_of_bounded hs) hθ
+
+lemma HolderOnWith.interpolate' {C₁ C₂ s t : ℝ≥0} {A : Set X}
+    (hf₁ : HolderOnWith C₁ r f A) (hf₂ : HolderOnWith C₂ s f A)
+    (r_ne_s : r ≠ s) (hrt : r ≤ t) (hts : t ≤ s) :
+    HolderOnWith (C₁ ^ ((s - t) / (s - r) : ℝ) * C₂ ^ ((t - r) / (s - r) : ℝ)) t f A := by
+  rw [← NNReal.coe_injective.ne_iff, ne_comm, ← sub_ne_zero] at r_ne_s
+  have hrs := hrt.trans hts
+  rw [← NNReal.coe_le_coe, ← sub_nonneg] at hrt hts hrs
+  set θ₁ : ℝ≥0 := ⟨(s - t) / (s - r), by positivity⟩
+  set θ₂ : ℝ≥0 := ⟨(t - r) / (s - r), by positivity⟩
+  change HolderOnWith (C₁ ^ (θ₁: ℝ) * C₂ ^ (θ₂ : ℝ)) t f A
+  have hθ : θ₁ + θ₂ = 1 := by
+    ext
+    simp [θ₁, θ₂, ← add_div, div_self r_ne_s]
+  have hθt : r * θ₁ + s * θ₂ = t := by
+    ext
+    simp [θ₁, θ₂]
+    field_simp
+    ring
+  rw [← hθt]
+  exact hf₁.interpolate hf₂ hθ
+
+/-- If a function is `r`-Hölder over a bounded set, then it is also `t`-Hölder when `t ≤ r`. -/
+lemma HolderOnWith.of_le' {C D s : ℝ≥0} {A : Set X}
+    (hA : ∀ x ∈ A, ∀ y ∈ A, edist x y ≤ D) (hf : HolderOnWith C r f A) (hsr : s ≤ r) :
+    HolderOnWith (C * D ^ (r - s : ℝ)) s f A := by
+  obtain rfl | s_pos := eq_zero_or_pos s
+  · simpa using hf.holderOnWith_zero_of_bounded hA
+  have r_pos : 0 < r := s_pos.trans_le hsr
+  convert (hf.holderOnWith_zero_of_bounded hA).interpolate' hf r_pos.ne (zero_le s) hsr
+    using 1
+  rw [← NNReal.coe_le_coe, ← sub_nonneg] at hsr
+  simp (discharger := positivity) only [NNReal.coe_zero, sub_zero, NNReal.mul_rpow,
+    mul_right_comm, ← NNReal.rpow_add_of_nonneg, ← NNReal.rpow_mul, ← add_div,
+    sub_add_cancel, mul_div_cancel₀, div_self, NNReal.rpow_one]
 
 /-- If a function is `r`-Hölder over a bounded space, then it is also `t`-Hölder when `t ≤ r`. -/
 lemma HolderWith.of_le {C D t : ℝ≥0}
