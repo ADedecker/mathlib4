@@ -6,6 +6,7 @@ Authors: Anatole Dedecker, Luigi Massacci
 module
 
 public import Mathlib.Analysis.Calculus.ContDiff.Operations
+public import Mathlib.MeasureTheory.Measure.Typeclasses.Finite
 public import Mathlib.Topology.ContinuousMap.Bounded.Normed
 public import Mathlib.Topology.Sets.Compacts
 
@@ -494,5 +495,24 @@ theorem continuous_iff_comp_withOrder {X : Type*} [TopologicalSpace X] (φ : X �
   simp [hin, structureMapCLM_apply_withOrder]
 
 end Topology
+
+section Integration
+
+/-!
+## Integrating `f : 𝓓^{n}_{K}(E, F)` against a measure / L1_loc function
+
+-/
+
+open MeasureTheory
+
+variable [MeasurableSpace E]
+
+protected lemma stronglyMeasurable' {f : 𝓓^{n}_{K}(E, F)} : sorry := sorry
+
+Continuous.stronglyMeasurable_of_hasCompactSupport
+
+protected lemma integrable {f : 𝓓^{n}_{K}(E, F)} {μ : Measure K} : sorry := sorry
+
+end Integration
 
 end ContDiffMapSupportedIn
