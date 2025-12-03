@@ -447,37 +447,41 @@ variable (𝕜) in
 custom constructor for continuous linear maps `𝓓^{n}(Ω, F) →L[𝕜] V`, where `V` is an arbitrary
 locally convex topological vector space. -/
 @[simps]
-protected def mkCLM [Algebra ℝ 𝕜] [IsScalarTower ℝ 𝕜 F] [Module 𝕜 V] [IsScalarTower ℝ 𝕜 V]
+protected def mkCLM [SMulCommClass ℝ 𝕜 F] [Module 𝕜 V] [SMulCommClass ℝ 𝕜 V]
     (toFun : 𝓓^{n}(Ω, F) → V)
     (map_add : ∀ f g, toFun (f + g) = toFun f + toFun g)
+    (map_smul_real : ∀ r : ℝ, ∀ f, toFun (r • f) = r • toFun f)
     (map_smul : ∀ c : 𝕜, ∀ f, toFun (c • f) = c • toFun f)
     (cont : ∀ (K : Compacts E) (K_sub_Ω : (K : Set E) ⊆ Ω),
       Continuous (toFun ∘ ofSupportedIn K_sub_Ω)) :
     𝓓^{n}(Ω, F) →L[𝕜] V :=
+  letI Φ_real : 𝓓^{n}(Ω, F) →ₗ[ℝ] V := ⟨⟨toFun, map_add⟩, map_smul_real⟩
   letI Φ : 𝓓^{n}(Ω, F) →ₗ[𝕜] V := ⟨⟨toFun, map_add⟩, map_smul⟩
   { toLinearMap := Φ
-    cont := show Continuous Φ by rwa [TestFunction.continuous_iff_continuous_comp] }
+    cont := show Continuous Φ_real by rwa [TestFunction.continuous_iff_continuous_comp] }
 
 end Topology
 
 section ToBoundedContinuousFunctionCLM
 
+variable [SMulCommClass ℝ 𝕜 F]
+
 variable (𝕜) in
 /-- The inclusion of the space `𝓓^{n}(Ω, F)` into the space `E →ᵇ F` of bounded continuous
 functions as a continuous `𝕜`-linear map. -/
 @[simps! apply]
-noncomputable def toBoundedContinuousFunctionCLM [Algebra ℝ 𝕜] [IsScalarTower ℝ 𝕜 F] :
+noncomputable def toBoundedContinuousFunctionCLM :
     𝓓^{n}(Ω, F) →L[𝕜] E →ᵇ F :=
-  TestFunction.mkCLM 𝕜 (↑) (fun _ _ ↦ rfl) (fun _ _ ↦ rfl)
+  TestFunction.mkCLM 𝕜 (↑) (fun _ _ ↦ rfl) (fun _ _ ↦ rfl) (fun _ _ ↦ rfl)
     (fun _ _ ↦ (ContDiffMapSupportedIn.toBoundedContinuousFunctionCLM 𝕜).continuous)
 
-lemma toBoundedContinuousFunctionCLM_eq_of_scalars [Algebra ℝ 𝕜] [IsScalarTower ℝ 𝕜 F] (𝕜' : Type*)
-    [NontriviallyNormedField 𝕜'] [NormedSpace 𝕜' F] [Algebra ℝ 𝕜'] [IsScalarTower ℝ 𝕜' F] :
+lemma toBoundedContinuousFunctionCLM_eq_of_scalars (𝕜' : Type*)
+    [NontriviallyNormedField 𝕜'] [NormedSpace 𝕜' F] [SMulCommClass ℝ 𝕜' F] :
     (toBoundedContinuousFunctionCLM 𝕜 : 𝓓^{n}(Ω, F) → _) = toBoundedContinuousFunctionCLM 𝕜' :=
   rfl
 
 variable (𝕜) in
-theorem injective_toBoundedContinuousFunctionCLM [Algebra ℝ 𝕜] [IsScalarTower ℝ 𝕜 F] :
+theorem injective_toBoundedContinuousFunctionCLM :
     Function.Injective (toBoundedContinuousFunctionCLM 𝕜 : 𝓓^{n}(Ω, F) →L[𝕜] E →ᵇ F) :=
   fun f g ↦ by simp [toBoundedContinuousFunctionCLM]
 
@@ -489,6 +493,50 @@ instance : T3Space 𝓓^{n}(Ω, F) :=
 end ToBoundedContinuousFunctionCLM
 
 section FDerivCLM
+
+variable [SMulCommClass ℝ 𝕜 F]
+
+variable (𝕜 n k) in
+/-- `fderivWithOrderCLM 𝕜 n k` is the continuous `𝕜`-linear-map sending `f : 𝓓^{n}_{K}(E, F)` to
+its derivative as an element of `𝓓^{k}_{K}(E, E →L[ℝ] F)`.
+This only makes mathematical sense if `k + 1 ≤ n`, otherwise we define it as the zero map.
+
+See `fderivCLM` for the very common case where everything is infinitely differentiable. -/
+noncomputable def fderivWithOrderCLM :
+    𝓓^{n}(Ω, F) →L[𝕜] 𝓓^{k}(Ω, E →L[ℝ] F) :=
+  letI Φ (f : 𝓓^{n}(Ω, F)) : 𝓓^{k}(Ω, E →L[ℝ] F) :=
+    if hk : k + 1 ≤ n then
+      ⟨fderiv ℝ f, f.contDiff.fderiv_right (mod_cast hk),
+        f.hasCompactSupport.fderiv ℝ, tsupport_fderiv_subset ℝ |>.trans f.tsupport_subset⟩
+    else 0
+  haveI Φ_add (f g : 𝓓^{n}(Ω, F)) : Φ (f + g) = Φ f + Φ g := by
+    simp_rw [Φ]
+    split_ifs with hk
+    · have hk' : 1 ≤ (n : WithTop ℕ∞) := mod_cast (le_of_add_le_right hk)
+      ext
+      simp [fderiv_add (f.contDiff.differentiable hk').differentiableAt
+                       (g.contDiff.differentiable hk').differentiableAt]
+    · simp
+  haveI Φ_smul (c : 𝕜) (f : 𝓓^{n}(Ω, F)) : Φ (c • f) = c • (Φ f) := by
+    simp_rw [Φ]
+    split_ifs with hk
+    · have hk' : 1 ≤ (n : WithTop ℕ∞) := mod_cast (le_of_add_le_right hk)
+      ext
+      simp [fderiv_const_smul (f.contDiff.differentiable hk').differentiableAt]
+    · simp
+  haveI Φ_smul_real (r : ℝ) (f : 𝓓^{n}(Ω, F)) : Φ (r • f) = r • (Φ f) := by
+    simp_rw [Φ]
+    split_ifs with hk
+    · have hk' : 1 ≤ (n : WithTop ℕ∞) := mod_cast (le_of_add_le_right hk)
+      ext
+      simp [fderiv_const_smul (f.contDiff.differentiable hk').differentiableAt]
+    · simp
+  haveI key (K : Compacts E) (K_sub_Ω : (K : Set E) ⊆ Ω) (f : 𝓓^{n}_{K}(E, F)) :
+      ofSupportedIn K_sub_Ω (ContDiffMapSupportedIn.fderivWithOrderCLM 𝕜 n k f) =
+        Φ (ofSupportedIn K_sub_Ω f) := by
+    classical
+    ext; simp [Φ]
+  sorry
 
 variable (𝕜 n k) in
 /-- `fderivWithOrderCLM 𝕜 n k` is the continuous `𝕜`-linear-map sending `f : 𝓓^{n}_{K}(E, F)` to
