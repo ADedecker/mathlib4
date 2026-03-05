@@ -1343,38 +1343,28 @@ end LinearIsometryEquiv
 section extreme
 variable {H : Type*} [NormedAddCommGroup H] [NormedSpace ℝ H]
 
-open Set Metric
+open Set Metric Filter
+open scoped Topology
 
-theorem not_mem_extremePoints_of_mem_interior {E : Type*} [AddCommGroup E] [Module ℝ E]
-    [TopologicalSpace E] [ContinuousAdd E] [ContinuousSMul ℝ E] [Nontrivial E]
-    {S : Set E} {x : E} (hx : x ∈ interior S) : x ∉ extremePoints ℝ S := fun h ↦ by
-  obtain ⟨v, hv⟩ := exists_ne (0 : E)
-  let f (t : ℝ) : E := x + t • v
-  obtain ⟨ε, hε, hεb⟩ : ∃ ε > 0, f '' ball 0 ε ⊆ interior S := by
-    simp_rw [image_subset_iff]
-    refine Metric.mem_nhds_iff.mp <| (by fun_prop : Continuous f).continuousAt ?_
-    simp only [zero_smul, add_zero, interior_mem_nhds, f]
-    exact mem_interior_iff_mem_nhds.mp hx
-  have : f (ε / 2) ≠ f (-ε / 2) := by
-    simp only [ne_eq, neg_div, neg_smul, add_right_inj, f]
-    rw [← sub_eq_zero, sub_neg_eq_add, ← two_smul ℝ]
-    simp [hv, hε.ne']
-  have := mem_extremePoints.mp h |>.2 (f (ε / 2)) (interior_subset (hεb (by simp; grind)))
-    (f (-ε / 2)) (interior_subset (hεb (by simp; grind))) ⟨2⁻¹, 2⁻¹, ?_⟩
-  · grind
-  · simp [← one_div, ← smul_add, f, neg_div, add_assoc, ← two_smul ℝ, smul_smul, mul_one_div_cancel]
+theorem disjoint_interior_extremePoints {E : Type*} [AddCommGroup E] [Module ℝ E]
+    [TopologicalSpace E] [IsTopologicalAddGroup E] [ContinuousSMul ℝ E] [Nontrivial E]
+    (S : Set E) : Disjoint (interior S) (extremePoints ℝ S) := by
+  refine Set.disjoint_iff.mpr fun x ⟨x_int, x_ext⟩ ↦ ?_
+  rw [mem_interior_iff_mem_nhds] at x_int
+  have h₁ : ∀ᶠ v in 𝓝[≠] 0, x - v ∈ S :=
+    (tendsto_inf_left <| (continuous_sub_left _).tendsto' _ _ (sub_zero _)).eventually x_int
+  have h₂ : ∀ᶠ v in 𝓝[≠] 0, x + v ∈ S :=
+    (tendsto_inf_left <| (continuous_add_left _).tendsto' _ _ (add_zero _)).eventually x_int
+  obtain ⟨v, ⟨hv₁, hv₂⟩, (v_ne : v ≠ 0)⟩ := h₁.and h₂ |>.and eventually_mem_nhdsWithin |>.exists
+  have key : x ∈ openSegment ℝ (x - v) (x + v) := mem_openSegment_sub_add _ _ _
+  grind only [x_ext.2 hv₁ hv₂ key]
 
 /-- In a nontrivial normed space, the extreme points of the closed unit ball is contained in
 the unit sphere. -/
-theorem extremePoints_closedUnitBall_subset_unitSphere [Nontrivial H] :
-    extremePoints ℝ (closedBall (0 : H) 1) ⊆ sphere 0 1 := fun x hx ↦ by
-  have h : x ≠ 0 := fun h ↦
-    not_mem_extremePoints_of_mem_interior (by simp [h, interior_closedBall]) hx
-  simp only [mem_extremePoints, mem_closedBall, dist_zero_right] at hx
-  by_contra!
-  refine h (@hx.2 (‖x‖⁻¹ • x) ?_ 0 (by simp) ⟨‖x‖, 1 - ‖x‖, by simp_all, ?_, ?_⟩).2.symm
-  on_goal 2 => grind [mem_sphere_zero_iff_norm]
-  all_goals simp [norm_smul, norm_ne_zero_iff.mpr h]
+theorem extremePoints_closedUnitBall_subset_unitSphere [Nontrivial H] {r : ℝ} {x : H} :
+    extremePoints ℝ (closedBall x r) ⊆ sphere x r := by
+  rw [← closedBall_diff_ball, subset_diff, ← interior_closedBall' _]
+  exact ⟨extremePoints_subset, disjoint_interior_extremePoints _ |>.symm⟩
 
 theorem StrictConvexSpace.extremePoints_closedUnitBall_eq_unitSphere [Nontrivial H]
     [StrictConvexSpace ℝ H] : extremePoints ℝ (closedBall (0 : H) 1) = sphere 0 1 :=
