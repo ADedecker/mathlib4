@@ -57,10 +57,10 @@ distributions, test function
 open Function Seminorm SeminormFamily Set TopologicalSpace UniformSpace
 open scoped BoundedContinuousFunction NNReal Topology
 
-variable {𝕜 𝕂 : Type*} [NontriviallyNormedField 𝕜]
+variable {R S 𝕜 : Type*} [Semiring R] [Semiring S] [NontriviallyNormedField 𝕜]
   {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E] {Ω : Opens E}
-  {F : Type*} [NormedAddCommGroup F] [NormedSpace ℝ F] [NormedSpace 𝕜 F]
-  {F' : Type*} [NormedAddCommGroup F'] [NormedSpace ℝ F'] [NormedSpace 𝕜 F']
+  {F : Type*} [NormedAddCommGroup F] [NormedSpace ℝ F]
+  {F' : Type*} [NormedAddCommGroup F'] [NormedSpace ℝ F']
   {n : ℕ∞}
 
 variable (Ω F n) in
@@ -208,15 +208,19 @@ end AddCommGroup
 
 section Module
 
-instance {R} [Semiring R] [Module R F] [SMulCommClass ℝ R F] [ContinuousConstSMul R F] :
+instance [Module R F] [SMulCommClass ℝ R F] [ContinuousConstSMul R F] :
     Module R 𝓓^{n}(Ω, F) := fast_instance%
   DFunLike.coe_injective.module R (coeFnAddMonoidHom Ω F n) fun _ _ ↦ rfl
 
-instance {R S} [Semiring R] [Semiring S] [Module R F] [Module S F] [SMulCommClass ℝ R F]
-    [SMulCommClass ℝ S F] [ContinuousConstSMul R F] [ContinuousConstSMul S F] [SMul R S]
-    [IsScalarTower R S F] :
+instance [Module R F] [Module S F] [SMulCommClass ℝ R F] [SMulCommClass ℝ S F]
+    [ContinuousConstSMul R F] [ContinuousConstSMul S F] [SMul R S] [IsScalarTower R S F] :
     IsScalarTower R S 𝓓^{n}(Ω, F) where
   smul_assoc _ _ _ := by ext; simp
+
+instance [Module R F] [Module S F] [SMulCommClass ℝ R F] [SMulCommClass ℝ S F]
+    [ContinuousConstSMul R F] [ContinuousConstSMul S F] [SMulCommClass R S F] :
+    SMulCommClass R S 𝓓^{n}(Ω, F) where
+  smul_comm _ _ _ := by ext; simp [smul_comm]
 
 end Module
 
@@ -296,12 +300,12 @@ theorem continuous_ofSupportedIn {K : Compacts E} (K_sub_Ω : (K : Set E) ⊆ Ω
   rw [continuous_iff_coinduced_le]
   exact le_trans (le_iSup₂_of_le K K_sub_Ω le_rfl) originalTop_le
 
-variable (𝕜) in
+variable (R) in
 /-- The natural inclusion `𝓓^{n}_{K}(E, F) → 𝓓^{n}(Ω, F)`, when `K ⊆ Ω`, as a continuous
 linear map. -/
-noncomputable def ofSupportedInCLM [SMulCommClass ℝ 𝕜 F] {K : Compacts E}
-    (K_sub_Ω : (K : Set E) ⊆ Ω) :
-    𝓓^{n}_{K}(E, F) →L[𝕜] 𝓓^{n}(Ω, F) where
+noncomputable def ofSupportedInCLM [Module R F] [SMulCommClass ℝ R F] [ContinuousConstSMul R F]
+    {K : Compacts E} (K_sub_Ω : (K : Set E) ⊆ Ω) :
+    𝓓^{n}_{K}(E, F) →L[R] 𝓓^{n}(Ω, F) where
   toFun f := ofSupportedIn K_sub_Ω f
   map_add' _ _ := rfl
   map_smul' _ _ := rfl
@@ -309,47 +313,51 @@ noncomputable def ofSupportedInCLM [SMulCommClass ℝ 𝕜 F] {K : Compacts E}
 
 @[deprecated (since := "2025-12-10")] alias ofSupportedInLM := ofSupportedInCLM
 
-@[simp] theorem coe_ofSupportedInCLM [SMulCommClass ℝ 𝕜 F] {K : Compacts E}
-    (K_sub_Ω : (K : Set E) ⊆ Ω) :
-    (ofSupportedInCLM 𝕜 K_sub_Ω : 𝓓^{n}_{K}(E, F) → 𝓓^{n}(Ω, F)) = ofSupportedIn K_sub_Ω :=
+@[simp] theorem coe_ofSupportedInCLM [Module R F] [SMulCommClass ℝ R F] [ContinuousConstSMul R F]
+    {K : Compacts E} (K_sub_Ω : (K : Set E) ⊆ Ω) :
+    (ofSupportedInCLM R K_sub_Ω : 𝓓^{n}_{K}(E, F) → 𝓓^{n}(Ω, F)) = ofSupportedIn K_sub_Ω :=
   rfl
 
 @[deprecated (since := "2025-12-10")] alias coe_ofSupportedInLM := coe_ofSupportedInCLM
 
 set_option backward.isDefEq.respectTransparency false in
-/-- The **universal property** of the topology on `𝓓^{n}(Ω, F)`: a **linear** map from
+/-- The **universal property** of the topology on `𝓓^{n}(Ω, F)`: a **real linear** map from
 `𝓓^{n}(Ω, F)` to a locally convex topological vector space is continuous if and only if its
 precomposition with the inclusion `ofSupportedIn K_sub_Ω : 𝓓^{n}_{K}(E, F) → 𝓓^{n}(Ω, F)` is
 continuous for every compact `K ⊆ Ω`. -/
-protected theorem continuous_iff_continuous_comp [Algebra ℝ 𝕜] [IsScalarTower ℝ 𝕜 F]
-    [Module 𝕜 V] [IsScalarTower ℝ 𝕜 V] (f : 𝓓^{n}(Ω, F) →ₗ[𝕜] V) :
+protected theorem continuous_iff_continuous_comp (f : 𝓓^{n}(Ω, F) →+ V)
+    (map_smul_real : ∀ (r : ℝ) (φ : 𝓓^{n}(Ω, F)), f (r • φ) = r • f φ) :
     Continuous f ↔ ∀ (K : Compacts E) (K_sub_Ω : (K : Set E) ⊆ Ω),
       Continuous (f ∘ ofSupportedIn K_sub_Ω) := by
-  simp_rw [← f.coe_restrictScalars ℝ]
+  let f' : 𝓓^{n}(Ω, F) →ₗ[ℝ] V := ⟨f, map_smul_real⟩
+  change Continuous f' ↔ ∀ (K : Compacts E) (K_sub_Ω : (K : Set E) ⊆ Ω),
+    Continuous (f' ∘ ofSupportedIn K_sub_Ω)
   rw [continuous_iff_le_induced]
-  have : @IsTopologicalAddGroup _ (induced (f.restrictScalars ℝ) t) _ :=
+  have : @IsTopologicalAddGroup _ (induced f' t) _ :=
     topologicalAddGroup_induced _
-  have : @ContinuousSMul ℝ _ _ _ (induced (f.restrictScalars ℝ) t) := continuousSMul_induced _
-  have : @LocallyConvexSpace ℝ _ _ _ _ _ (induced (f.restrictScalars ℝ) t) := .induced _
+  have : @ContinuousSMul ℝ _ _ _ (induced f' t) := continuousSMul_induced _
+  have : @LocallyConvexSpace ℝ _ _ _ _ _ (induced f' t) := .induced _
   simp_rw [topologicalSpace_le_iff, originalTop, iSup₂_le_iff, ← continuous_iff_le_induced,
     continuous_coinduced_dom]
 
-variable (𝕜) in
 /-- Reformulation of the universal property of the topology on `𝓓^{n}(Ω, F)`, in the form of a
 custom constructor for continuous linear maps `𝓓^{n}(Ω, F) →L[𝕜] V`, where `V` is an arbitrary
 locally convex topological vector space. -/
 @[simps]
-protected noncomputable def mkCLM [Algebra ℝ 𝕜] [IsScalarTower ℝ 𝕜 F] [Module 𝕜 V]
-    [IsScalarTower ℝ 𝕜 V]
+protected noncomputable def mkCLM (σ : R →+* S)
+    [Module R F] [Module S V] [SMulCommClass ℝ R F] [SMulCommClass ℝ S V]
+    [ContinuousConstSMul R F]
     (toFun : 𝓓^{n}(Ω, F) → V)
     (map_add : ∀ f g, toFun (f + g) = toFun f + toFun g)
-    (map_smul : ∀ c : 𝕜, ∀ f, toFun (c • f) = c • toFun f)
+    (map_smul : ∀ c : R, ∀ f, toFun (c • f) = σ c • toFun f)
+    (map_smul_real : ∀ r : ℝ, ∀ f, toFun (r • f) = r • toFun f)
     (cont : ∀ (K : Compacts E) (K_sub_Ω : (K : Set E) ⊆ Ω),
       Continuous (toFun ∘ ofSupportedIn K_sub_Ω)) :
-    𝓓^{n}(Ω, F) →L[𝕜] V :=
-  letI Φ : 𝓓^{n}(Ω, F) →ₗ[𝕜] V := ⟨⟨toFun, map_add⟩, map_smul⟩
+    𝓓^{n}(Ω, F) →SL[σ] V :=
+  letI Φ : 𝓓^{n}(Ω, F) →ₛₗ[σ] V := ⟨⟨toFun, map_add⟩, map_smul⟩
   { toLinearMap := Φ
-    cont := show Continuous Φ by rwa [TestFunction.continuous_iff_continuous_comp] }
+    cont := show Continuous Φ.toAddMonoidHom by
+      rwa [TestFunction.continuous_iff_continuous_comp _ map_smul_real] }
 
 end Topology
 
@@ -359,18 +367,19 @@ variable (𝕜) in
 /-- The inclusion of the space `𝓓^{n}(Ω, F)` into the space `E →ᵇ F` of bounded continuous
 functions as a continuous `𝕜`-linear map. -/
 @[simps! apply]
-noncomputable def toBoundedContinuousFunctionCLM [Algebra ℝ 𝕜] [IsScalarTower ℝ 𝕜 F] :
+noncomputable def toBoundedContinuousFunctionCLM
+    [NormedSpace 𝕜 F] [SMulCommClass ℝ 𝕜 F] :
     𝓓^{n}(Ω, F) →L[𝕜] E →ᵇ F :=
-  TestFunction.mkCLM 𝕜 (↑) (fun _ _ ↦ rfl) (fun _ _ ↦ rfl)
+  TestFunction.mkCLM (.id 𝕜) (↑) (fun _ _ ↦ rfl) (fun _ _ ↦ rfl) (fun _ _ ↦ rfl)
     (fun _ _ ↦ (ContDiffMapSupportedIn.toBoundedContinuousFunctionCLM 𝕜).continuous)
 
-lemma toBoundedContinuousFunctionCLM_eq_of_scalars [Algebra ℝ 𝕜] [IsScalarTower ℝ 𝕜 F] (𝕜' : Type*)
-    [NontriviallyNormedField 𝕜'] [NormedSpace 𝕜' F] [Algebra ℝ 𝕜'] [IsScalarTower ℝ 𝕜' F] :
+lemma toBoundedContinuousFunctionCLM_eq_of_scalars [NormedSpace 𝕜 F] [SMulCommClass ℝ 𝕜 F]
+    (𝕜' : Type*) [NontriviallyNormedField 𝕜'] [NormedSpace 𝕜' F] [SMulCommClass ℝ 𝕜' F] :
     (toBoundedContinuousFunctionCLM 𝕜 : 𝓓^{n}(Ω, F) → _) = toBoundedContinuousFunctionCLM 𝕜' :=
   rfl
 
 variable (𝕜) in
-theorem injective_toBoundedContinuousFunctionCLM [Algebra ℝ 𝕜] [IsScalarTower ℝ 𝕜 F] :
+theorem injective_toBoundedContinuousFunctionCLM [NormedSpace 𝕜 F] [SMulCommClass ℝ 𝕜 F] :
     Function.Injective (toBoundedContinuousFunctionCLM 𝕜 : 𝓓^{n}(Ω, F) →L[𝕜] E →ᵇ F) :=
   fun f g ↦ by simp [toBoundedContinuousFunctionCLM]
 
@@ -383,7 +392,8 @@ end ToBoundedContinuousFunctionCLM
 
 section postcomp
 
-variable [Algebra ℝ 𝕜] [IsScalarTower ℝ 𝕜 F] [IsScalarTower ℝ 𝕜 F']
+variable [NormedSpace 𝕜 F] [NormedSpace 𝕜 F'] [SMulCommClass ℝ 𝕜 F] [SMulCommClass ℝ 𝕜 F']
+variable [LinearMap.CompatibleSMul F F' ℝ 𝕜]
 
 -- Note: generalizing this to a semilinear setting would require a typeclass-way of saying that
 -- the `RingHom` is `ℝ`-linear.
@@ -399,8 +409,8 @@ noncomputable def postcompCLM (T : F →L[𝕜] F') :
       ofSupportedIn K_sub_Ω (ContDiffMapSupportedIn.postcompCLM T f) =
         Φ (ofSupportedIn K_sub_Ω f) := by
     ext; simp [Φ]
-  TestFunction.mkCLM 𝕜 Φ
-    (fun f g ↦ by ext; simp [Φ]) (fun c f ↦ by ext; simp [Φ])
+  TestFunction.mkCLM (.id 𝕜) Φ
+    (fun f g ↦ by ext; simp [Φ]) (fun c f ↦ by ext; simp [Φ]) (fun c f ↦ by ext; simp [Φ])
     (fun K K_sub_Ω ↦ by refine .congr ?_ (key K K_sub_Ω); fun_prop)
 
 @[simp]
