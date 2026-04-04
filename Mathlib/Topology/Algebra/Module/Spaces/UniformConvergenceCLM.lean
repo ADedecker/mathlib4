@@ -218,6 +218,13 @@ instance instDistribMulAction (M : Type*) [Monoid M] [DistribMulAction M F] [SMu
     DistribMulAction M (E →SLᵤ[σ, 𝔖] F) :=
   inferInstanceAs <| DistribMulAction M (E →SL[σ] F)
 
+instance instSMulCommClass (M N : Type*) [Monoid M] [Monoid N] [DistribMulAction M F]
+    [DistribMulAction N F] [SMulCommClass 𝕜₂ M F] [SMulCommClass 𝕜₂ N F] [SMulCommClass M N F]
+    [TopologicalSpace F] [IsTopologicalAddGroup F] [ContinuousConstSMul M F]
+    [ContinuousConstSMul N F] (𝔖 : Set (Set E)) :
+    SMulCommClass M N (E →SLᵤ[σ, 𝔖] F) :=
+  inferInstanceAs <| SMulCommClass M N (E →SL[σ] F)
+
 @[simp]
 theorem smul_apply {M : Type*} [Monoid M] [DistribMulAction M F] [SMulCommClass 𝕜₂ M F]
     [TopologicalSpace F] [IsTopologicalAddGroup F] [ContinuousConstSMul M F] (𝔖 : Set (Set E))
@@ -356,6 +363,32 @@ theorem isUniformEmbedding_postcomp
     IsUniformEmbedding (α := E →SLᵤ[σ, 𝔖] F) (β := E →SLᵤ[ρ, 𝔖] G)
       g.comp :=
   .mk (isUniformInducing_postcomp _ g hg.isUniformInducing _) fun _ _ ↦ g.cancel_left hg.injective
+
+variable {F} in
+theorem isInducing_postcomp
+    [AddCommGroup G] [TopologicalSpace G] [IsTopologicalAddGroup G]
+    {𝕜₃ : Type*} [NormedField 𝕜₃] [Module 𝕜₃ G]
+    {τ : 𝕜₂ →+* 𝕜₃} {ρ : 𝕜₁ →+* 𝕜₃} [RingHomCompTriple σ τ ρ]
+    [TopologicalSpace F] [IsTopologicalAddGroup F]
+    (g : F →SL[τ] G) (hg : IsInducing g) (𝔖 : Set (Set E)) :
+    IsInducing (X := E →SLᵤ[σ, 𝔖] F) (Y := E →SLᵤ[ρ, 𝔖] G)
+      g.comp :=
+  let _ := IsTopologicalAddGroup.rightUniformSpace F
+  have _ : IsUniformAddGroup F := isUniformAddGroup_of_addCommGroup
+  let _ := IsTopologicalAddGroup.rightUniformSpace G
+  have _ : IsUniformAddGroup G := isUniformAddGroup_of_addCommGroup
+  (isUniformInducing_postcomp _ _ (AddMonoidHom.isUniformInducing_of_isInducing hg) _).isInducing
+
+variable {F} in
+theorem isEmbedding_postcomp
+    [AddCommGroup G] [TopologicalSpace G] [IsTopologicalAddGroup G]
+    {𝕜₃ : Type*} [NormedField 𝕜₃] [Module 𝕜₃ G]
+    {τ : 𝕜₂ →+* 𝕜₃} {ρ : 𝕜₁ →+* 𝕜₃} [RingHomCompTriple σ τ ρ]
+    [TopologicalSpace F] [IsTopologicalAddGroup F]
+    (g : F →SL[τ] G) (hg : IsEmbedding g) (𝔖 : Set (Set E)) :
+    IsEmbedding (X := E →SLᵤ[σ, 𝔖] F) (Y := E →SLᵤ[ρ, 𝔖] G)
+      g.comp :=
+  .mk (isInducing_postcomp _ g hg.isInducing _) fun _ _ ↦ g.cancel_left hg.injective
 
 theorem completeSpace [UniformSpace F] [IsUniformAddGroup F] [ContinuousSMul 𝕜₂ F] [CompleteSpace F]
     {𝔖 : Set (Set E)} (h𝔖 : IsCoherentWith 𝔖) (h𝔖U : ⋃₀ 𝔖 = univ) :
