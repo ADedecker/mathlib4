@@ -7,7 +7,7 @@ module
 
 public import Mathlib.Data.Prod.Lex
 public import Mathlib.Data.Sigma.Order
-public import Mathlib.Data.PSigma.Order
+public import Mathlib.Data.Sum.Order
 public import Mathlib.Order.Completion
 public import Mathlib.Order.Hom.WithTopBot
 public import Mathlib.Topology.Order.Basic
@@ -31,80 +31,29 @@ in the second case, complete. It suffices to take `β := ℚ`.
 
 namespace Order
 
-/-- A `Hole` in a partial order is a (nontrivially) empty open interval -/
+/-- a `Hole` in a partial order is a (nontrivially) empty open interval -/
 @[ext]
-structure Hole (α : Type*) [Preorder α] where
+structure Hole (α : Type*) [PartialOrder α] where
   left : α
   right : α
   left_cov_right : left ⋖ right
 
-/-- A `HoleOrPt` in a partial order is... -/
-inductive HoleOrPt (α : Type*) [Preorder α] where
-  | some (a : α)
-  | hole (x : Hole α)
-
-namespace HoleOrPt
+namespace Hole
 
 section PartialOrder
 
 variable {α : Type*} [PartialOrder α]
 
-def elim {β : Type*} (f : α → β) (g : Hole α → β) : HoleOrPt α → β
-  | some a => f a
-  | hole x => g x
-
-def left : HoleOrPt α → α := elim id Hole.left
-def right : HoleOrPt α → α := elim id Hole.right
-
-lemma wcovBy (x : HoleOrPt α) : x.left ⩿ x.right :=
-  match x with
-  | some _ => .rfl
-  | hole x => x.left_cov_right.wcovBy
-
-lemma eq_some_of_left_eq_right {x : HoleOrPt α} (hl : x.left = x.right) :
-    x = some x.left :=
-  match x with
-  | some _ => rfl
-  | hole x => x.left_cov_right.ne hl |>.elim
-
-lemma eq_hole_of_left_ne_right {x : HoleOrPt α} (hl : x.left ≠ x.right) :
-    x = hole ⟨x.left, x.right, x.wcovBy.covBy_of_ne hl⟩ :=
-  match x with
-  | some _ => (hl rfl).elim
-  | hole _ => rfl
-
-lemma ext_of_left_right {x y : HoleOrPt α} (hl : x.left = y.left) (hr : x.right = y.right) :
-    x = y := by
-  by_cases hx : x.left = x.right
-  · have hy : y.left = y.right := by rwa [hl, hr] at hx
-    rw [eq_some_of_left_eq_right hx, eq_some_of_left_eq_right hy, hl]
-  · have hy : y.left ≠ y.right := by rwa [hl, hr] at hx
-    rw [eq_hole_of_left_ne_right hx, eq_hole_of_left_ne_right hy]
-    congr
-
-lemma ext_iff_left_right {x y : HoleOrPt α} :
-    x = y ↔ (x.left = y.left ∧ x.right = y.right) :=
-  ⟨fun eq ↦ by simp [eq], fun h ↦ ext_of_left_right h.1 h.2⟩
-
 /- This is not the good definition for a preorder,
 because one should identify holes ]a;b[ and ]c;d[ when a ~ c and b ~ d ! -/
 
-/-- The natural preordering on `HoleOrPt α` -/
-instance : PartialOrder (HoleOrPt α) where
+/-- The natural preordering on `Hole α` -/
+instance : PartialOrder (Hole α) where
   le x y := x.left ≤ y.left ∧ x.right ≤ y.right
   le_refl _ := by simp
   le_trans x y z h k := ⟨h.1.trans k.1, h.2.trans k.2⟩
   le_antisymm x y h k := by
-    apply ext_of_left_right <;> grind
-
-@[simp]
-lemma le_iff {x y : HoleOrPt α} :
-    x ≤ y ↔ x.left ≤ y.left ∧ x.right ≤ y.right :=
-  Iff.rfl
-
-lemma lt_iff {x y : HoleOrPt α} :
-    x < y ↔ (x.left < y.left ∧ x.right ≤ y.right) ∨ (x.left ≤ y.left ∧ x.right < y.right) :=
-  sorry -- should follow from Prod.lt_iff
+    ext <;> grind
 
 end PartialOrder
 
@@ -112,128 +61,76 @@ section LinearOrder
 
 variable {α : Type*} [LinearOrder α]
 
-instance : LinearOrder (HoleOrPt α) where
-  le_total x y := by
-    sorry -- should follow from API about covBy in linear orders
-  toDecidableLE := fun x y ↦ inferInstanceAs (Decidable (x.left ≤ y.left ∧ x.right ≤ y.right))
+noncomputable instance : LinearOrder (Hole α) where
+  le_total x t := sorry
+  toDecidableLE := Classical.decRel LE.le
 
 end LinearOrder
 
-end HoleOrPt
+end Hole
 
-/-- The `Fill α f` of a preorder `α` replaces all `x : Hole α` with the preorder `f x` -/
-abbrev Fill {α : Type*} [PartialOrder α] (f : Hole α → Type*) :=
-  Σₗ (x : HoleOrPt α), x.elim (fun _ ↦ PUnit) f
+/-- The `Fill α f` of a preorder `α` replaces all `x : Hole α` with the preorder `f x`. -/
+inductive Fill {α : Type*} [PartialOrder α] (f : Hole α → Type*)
+  | some (a : α)
+  | hole (x : Hole α) (t : f x)
 
 namespace Fill
 
-section PartialOrder
-
-variable {α : Type*} [PartialOrder α] {f : Hole α → Type*} [∀ x, PartialOrder (f x)]
-
-local instance (x : HoleOrPt α) : PartialOrder (x.elim (fun _ => PUnit) f) := match x with
-  | HoleOrPt.some _ => inferInstanceAs (PartialOrder PUnit)
-  | HoleOrPt.hole x' => inferInstanceAs (PartialOrder (f x'))
-
-instance : PartialOrder (Fill f) := inferInstance
-
-local instance (x : HoleOrPt α) [∀ x, DenselyOrdered (f x)] :
-    DenselyOrdered (x.elim (fun _ => PUnit) f) := match x with
-  | HoleOrPt.some _ => inferInstanceAs (DenselyOrdered PUnit)
-  | HoleOrPt.hole x' => inferInstanceAs (DenselyOrdered (f x'))
-
-instance [∀ x, Nonempty (f x)] [∀ x, NoMinOrder (f x)] [∀ x, NoMaxOrder (f x)]
-    [∀ x, DenselyOrdered (f x)] : DenselyOrdered (Fill f) where
-  dense _ _ := fun
-    | @Sigma.Lex.left _ _ _ _ (.some a) (.some b) _ _ hab => by
-        sorry
-    | @Sigma.Lex.left _ _ _ _ x y u v hxy => by
-        sorry
-    | @Sigma.Lex.right _ _ _ _ x u v h => by
-        rcases exists_between h with ⟨w, hw⟩
-        use ⟨x, w⟩, .right _ _ hw.1, .right _ _ hw.2
-
-end PartialOrder
-
-section LinearOrder
-
-variable {α : Type*} [LinearOrder α] {f : Hole α → Type*} [∀ x, LinearOrder (f x)]
-
-instance : LinearOrder (Fill f) :=
-  letI : ∀ (x : HoleOrPt α), LinearOrder (x.elim (fun _ => PUnit) f)
-    | HoleOrPt.some _ => inferInstanceAs (LinearOrder PUnit)
-    | HoleOrPt.hole x => inferInstanceAs (LinearOrder (f x))
-  inferInstance
-
-instance [∀ x, Nonempty (f x)] [∀ x, NoMinOrder (f x)] [∀ x, NoMaxOrder (f x)]
-    [∀ x, DenselyOrdered (f x)] : DenselyOrdered (Fill f) where
-  dense x y hxy := match
-
-end LinearOrder
-
 section LE
 
-variable {α : Type*} [PartialOrder α] {f : Hole α → Type*} []
-
-def left : Fill f → α
-  | some a => a
-  | hole x _ => x.left
-
-def right : Fill f → α
-  | some a => a
-  | hole x _ => x.right
-
-@[simp, grind =] lemma left_some {a : α} : (some a : Fill f).left = a := rfl
-@[simp, grind =] lemma left_hole {x : Hole α} {t : f x} : (hole x t).left = x.left := rfl
-@[simp, grind =] lemma right_some {a : α} : (some a : Fill f).right = a := rfl
-@[simp, grind =] lemma right_hole {x : Hole α} {t : f x} : (hole x t).right = x.right := rfl
-
-variable [∀ x, LE (f x)]
+variable {α : Type*} [PartialOrder α] (f : Hole α → Type*) [∀ x, LE (f x)]
 
 instance : LE (Fill f) where
   le
   | some (a : α), some (b : α) => a ≤ b
   | some (a : α), hole y _ => a ≤ y.left
   | hole y _, some b => y.right ≤ b
-  | hole x t, hole y u => x < y ∨ ∃ (h : x = y), t ≤ h ▸ u
+  | hole x t, hole y u => x < y ∨ ∃ (h : y = x), t ≤ h ▸ u
 
-@[simp, grind =]
-theorem some_le_some_iff {a b : α} : (some a : Fill f) ≤ some b ↔ a ≤ b := Iff.rfl
-
-@[simp, grind =]
-theorem some_le_hole_iff {a : α} {y : Hole α} {u : f y} :
+@[simp] theorem some_le_some_iff {a b : α} : (some a : Fill f) ≤ some b ↔ a ≤ b := Iff.rfl
+@[simp] theorem some_le_hole_iff {a : α} {y : Hole α} {u : f y} :
     some a ≤ hole y u ↔ a ≤ y.left:= Iff.rfl
-
-@[simp, grind =]
-theorem hole_le_some_iff {x : Hole α} {t : f x} {b : α} :
+@[simp] theorem hole_le_some_iff {x : Hole α} {t : f x} {b : α} :
     hole x t ≤ some b ↔ x.right ≤ b := Iff.rfl
-
-@[simp, grind =]
-theorem hole_le_hole_iff {x y : Hole α} {t : f x} {u : f y} :
-    hole x t ≤ hole y u ↔ (toLex ⟨x, t⟩ : Σₗ (h : Hole α), f h) ≤ toLex ⟨y, u⟩ := by
-  simp [Sigma.Lex.le_def]
-  rfl
-
-def holeEmb : Σₗ (x : Hole α), f x
+@[simp] theorem hole_le_hole_iff {x y : Hole α} {t : f x} {u : f y} :
+    hole x t ≤ hole y u ↔ x < y ∨ ∃ (h : y = x), t ≤ h ▸ u :=
+  Iff.rfl
 
 end LE
+
+section LT
+
+variable {α : Type*} [PartialOrder α] (f : Hole α → Type*) [∀ x, LT (f x)]
+
+instance : LT (Fill f) where
+  lt
+  | some (a : α), some (b : α) => a < b
+  | some (a : α), hole y _ => a ≤ y.left
+  | hole y _, some b => y.right ≤ b
+  | hole x t, hole y u => x < y ∨ ∃ (h : y = x), t < h ▸ u
+
+end LT
 
 section PartialOrder
 
 variable {α : Type*} [PartialOrder α] {f : Hole α → Type*} [∀ x, PartialOrder (f x)]
 
-instance : PartialOrder (Fill f) where
-  le_refl x := match x with
-    | some a => by grind
-    | hole x t => by grind
-  le_trans x y z := by
-    cases x <;> cases y <;> cases z <;> try grind
-    sorry
-  le_antisymm x y := by
-    cases x <;> cases y <;> try grind
+#check WithBot
 
+def embFun : Fill f → Lex (α × WithBot (Σₗ (x : Hole α), f x))
+  | some a => toLex ⟨a, ⊥⟩
+  | hole x u => toLex ⟨x.left, .some ⟨x, u⟩⟩
+
+lemma embFun_le_embFun_iff {s t : Fill f} : embFun s ≤ embFun t ↔ s ≤ t := by
+  cases s <;> cases t
+  · simp [embFun, Prod.Lex.le_iff, ← le_iff_lt_or_eq]
+  · simp [embFun, Prod.Lex.le_iff, ← le_iff_lt_or_eq]
+  · simp [embFun, Prod.Lex.le_iff, Hole.left_cov_right _ |>.]
+  · rfl
+  sorry
 
 end PartialOrder
+
 section lt
 
 variable {α : Type*} [PartialOrder α] (f : Hole α → Type*) [∀ x, LT (f x)]
