@@ -11,6 +11,7 @@ public import Mathlib.Analysis.Normed.Module.Basic
 public import Mathlib.Analysis.SpecificLimits.Normed
 public import Mathlib.LinearAlgebra.FiniteDimensional.Lemmas
 public import Mathlib.RingTheory.LocalRing.Basic
+public import Mathlib.RingTheory.Finiteness.Cofinite
 public import Mathlib.Topology.Algebra.Module.Determinant
 public import Mathlib.Topology.Algebra.Module.ModuleTopology
 public import Mathlib.Topology.Algebra.Module.Simple
@@ -517,10 +518,17 @@ theorem FiniteDimensional.complete [FiniteDimensional 𝕜 E] : CompleteSpace E 
 variable {𝕜 E}
 
 /-- A finite-dimensional subspace is complete. -/
+theorem Submodule.FG.isComplete {s : Submodule 𝕜 E} (hs : s.FG) :
+    IsComplete (s : Set E) :=
+  have : IsUniformAddGroup s := s.toAddSubgroup.isUniformAddGroup
+  have : FiniteDimensional 𝕜 s := .of_fg hs
+  completeSpace_coe_iff_isComplete.1 (FiniteDimensional.complete 𝕜 s)
+
+/-- A finite-dimensional subspace is complete. -/
+@[deprecated Submodule.FG.isComplete (since := "2026-05-15")]
 theorem Submodule.complete_of_finiteDimensional (s : Submodule 𝕜 E) [FiniteDimensional 𝕜 s] :
     IsComplete (s : Set E) :=
-  haveI : IsUniformAddGroup s := s.toAddSubgroup.isUniformAddGroup
-  completeSpace_coe_iff_isComplete.1 (FiniteDimensional.complete 𝕜 s)
+  FG.of_finite.isComplete
 
 end IsUniformAddGroup
 
@@ -531,20 +539,33 @@ variable {𝕜 E F : Type*} [NontriviallyNormedField 𝕜] [CompleteSpace 𝕜]
   [ContinuousSMul 𝕜 F]
 
 /-- A finite-dimensional subspace is closed. -/
-theorem Submodule.closed_of_finiteDimensional
-    [T2Space E] (s : Submodule 𝕜 E) [FiniteDimensional 𝕜 s] :
+theorem Submodule.FG.isClosed [T2Space E] {s : Submodule 𝕜 E} (hs : s.FG) :
     IsClosed (s : Set E) :=
   letI := IsTopologicalAddGroup.rightUniformSpace E
   haveI : IsUniformAddGroup E := isUniformAddGroup_of_addCommGroup
-  s.complete_of_finiteDimensional.isClosed
+  hs.isComplete.isClosed
+
+/-- A finite-dimensional subspace is closed. -/
+@[deprecated Submodule.FG.isClosed (since := "2026-05-15")]
+theorem Submodule.closed_of_finiteDimensional
+    [T2Space E] (s : Submodule 𝕜 E) [FiniteDimensional 𝕜 s] :
+    IsClosed (s : Set E) :=
+  FG.of_finite.isClosed
+
+/-- If `s` is a closed subspace with finite codimension, any subspace containing `s` is closed. -/
+theorem Submodule.isClosed_mono_of_coFG
+    {s t : Submodule 𝕜 E} (s_closed : IsClosed (s : Set E)) (s_coFG : s.CoFG) (s_le_t : s ≤ t) :
+    IsClosed (t : Set E) := by
+  rw [show t = comap s.mkQ (map s.mkQ t) by simpa]
+  have : (map s.mkQ t).FG := .of_finite
+  exact this.isClosed.preimage continuous_quot_mk
 
 /-- If `s` is a closed subspace with finite codimension, any subspace containing `s` is closed. -/
 theorem Submodule.isClosed_mono_of_finiteDimensional_quotient
-    {s t : Submodule 𝕜 E} [FiniteDimensional 𝕜 (E ⧸ s)] (s_closed : IsClosed (s : Set E))
+    {s t : Submodule 𝕜 E} [h_codim : FiniteDimensional 𝕜 (E ⧸ s)] (s_closed : IsClosed (s : Set E))
     (s_le_t : s ≤ t) :
-    IsClosed (t : Set E) := by
-  rw [show t = comap s.mkQ (map s.mkQ t) by simpa]
-  exact (map s.mkQ t).closed_of_finiteDimensional.preimage continuous_quot_mk
+    IsClosed (t : Set E) :=
+  CoFG.of_finite
 
 /-- The supremum of a closed subspace and a finite dimensional subspace is closed. -/
 theorem Submodule.isClosed_sup_finiteDimensional
